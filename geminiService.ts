@@ -2,7 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SearchResult, CalendarEvent, ClinicalCase } from "./types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY}); as per guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const searchMedicalUpdates = async (query: string): Promise<SearchResult> => {
   try {
@@ -61,7 +62,7 @@ export const generateSmartSchedule = async (request: string, startDate: string):
       }
     });
 
-    return JSON.parse(response.text);
+    return JSON.parse(response.text || "[]");
   } catch (error) {
     console.error("Error generating smart schedule:", error);
     return [];
@@ -102,7 +103,7 @@ export const generateClinicalCase = async (topic: string): Promise<ClinicalCase 
       }
     });
 
-    return JSON.parse(response.text);
+    return JSON.parse(response.text || "null");
   } catch (error) {
     console.error("Error generating clinical case:", error);
     return null;

@@ -8,23 +8,18 @@ import {
   ChevronRight, 
   CheckCircle2, 
   Circle,
-  TrendingUp,
   Clock,
-  Stethoscope,
   Plus,
   ChevronLeft,
-  Bell,
   Trash2,
   Sparkles,
-  Activity,
-  User,
-  ShieldCheck,
-  Timer,
   LayoutDashboard,
   ClipboardList,
   AlertCircle,
   Dna,
-  GraduationCap
+  GraduationCap,
+  // Added missing ShieldCheck icon to resolve 'Cannot find name ShieldCheck' error
+  ShieldCheck
 } from 'lucide-react';
 import { SEMESTER_DATA } from './constants';
 import { Module, CalendarEvent, EventType, SearchResult } from './types';
@@ -33,7 +28,6 @@ import { searchMedicalUpdates, generateSmartSchedule } from './geminiService';
 // --- UI Helpers ---
 const GLASS_CARD = "bg-white border border-slate-200/60 shadow-sm rounded-3xl overflow-hidden";
 const PRIMARY_BLUE = "text-blue-600";
-const NAV_DARK = "bg-slate-900/95";
 
 const ProgressBar = ({ progress, label, color = 'bg-blue-600' }: { progress: number; label?: string; color?: string }) => (
   <div className="w-full">
@@ -539,7 +533,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Persistencia automática
+  // Automatic persistence
   useEffect(() => localStorage.setItem('axioma_modules_v1', JSON.stringify(modules)), [modules]);
   useEffect(() => localStorage.setItem('axioma_events_v1', JSON.stringify(events)), [events]);
 
