@@ -18,13 +18,6 @@ export interface Module {
   topics: Topic[];
 }
 
-export interface FriendProgress {
-  id: string;
-  name: string;
-  progress: number;
-  avatar: string;
-}
-
 export interface SearchResult {
   text: string;
   sources: Array<{ title: string; uri: string }>;
@@ -40,4 +33,14 @@ export interface CalendarEvent {
   description?: string;
   reminderSet: boolean;
   completed: boolean;
+}
+
+export interface ClinicalCase {
+  patientProfile: string;
+  symptoms: string[];
+  vitals: { [key: string]: string };
+  physicalExam: string;
+  correctDiagnosis: string;
+  explanation: string;
+  suggestedManagement: string[];
 }

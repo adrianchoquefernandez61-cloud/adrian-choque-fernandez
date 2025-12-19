@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
-  Home, 
   BookOpen, 
   Calendar as CalendarIcon, 
   Search, 
@@ -11,623 +10,365 @@ import {
   Circle,
   TrendingUp,
   Clock,
-  ExternalLink,
-  Menu,
-  X,
   Stethoscope,
   Plus,
   ChevronLeft,
   Bell,
   Trash2,
-  AlertCircle,
   Sparkles,
-  Wand2,
-  CalendarDays
+  Activity,
+  User,
+  ShieldCheck,
+  Timer,
+  LayoutDashboard,
+  ClipboardList,
+  AlertCircle,
+  Dna,
+  GraduationCap
 } from 'lucide-react';
 import { SEMESTER_DATA } from './constants';
-import { Module, Topic, SearchResult, CalendarEvent, EventType } from './types';
+import { Module, CalendarEvent, EventType, SearchResult } from './types';
 import { searchMedicalUpdates, generateSmartSchedule } from './geminiService';
 
-// --- Components ---
+// --- UI Helpers ---
+const GLASS_CARD = "bg-white border border-slate-200/60 shadow-sm rounded-3xl overflow-hidden";
+const PRIMARY_BLUE = "text-blue-600";
+const NAV_DARK = "bg-slate-900/95";
 
 const ProgressBar = ({ progress, label, color = 'bg-blue-600' }: { progress: number; label?: string; color?: string }) => (
   <div className="w-full">
-    {label && <div className="flex justify-between text-sm mb-1 font-medium"><span>{label}</span><span>{Math.round(progress)}%</span></div>}
-    <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+    {label && (
+      <div className="flex justify-between text-[10px] mb-2 font-black uppercase tracking-widest text-slate-400">
+        <span>{label}</span>
+        <span>{Math.round(progress)}%</span>
+      </div>
+    )}
+    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
       <div 
-        className={`${color} h-2.5 rounded-full transition-all duration-500 ease-out`} 
+        className={`${color} h-full rounded-full transition-all duration-1000 ease-in-out`} 
         style={{ width: `${progress}%` }}
       ></div>
     </div>
   </div>
 );
 
-const ModuleCard = ({ module }: { module: Module }) => {
-  const completedSubtopics = module.topics.reduce((acc, topic) => 
-    acc + topic.subTopics.filter(st => st.isCompleted).length, 0
-  );
-  const totalSubtopics = module.topics.reduce((acc, topic) => acc + topic.subTopics.length, 0);
-  const progress = totalSubtopics > 0 ? (completedSubtopics / totalSubtopics) * 100 : 0;
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 hover:border-blue-300 transition-colors">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-blue-500" />
-          {module.name}
-        </h3>
-        <span className="text-xs font-semibold px-2 py-1 bg-blue-50 text-blue-600 rounded-full">
-          {completedSubtopics}/{totalSubtopics} Temas
-        </span>
-      </div>
-      <ProgressBar progress={progress} />
-      <div className="mt-4 space-y-3">
-        {module.topics.slice(0, 3).map(topic => (
-          <div key={topic.id} className="text-sm flex items-center justify-between text-slate-600">
-            <span className="truncate">{topic.title}</span>
-            {topic.subTopics.every(st => st.isCompleted) ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Circle className="w-4 h-4 text-slate-300" />}
-          </div>
-        ))}
-        {module.topics.length > 3 && <div className="text-xs text-slate-400 italic">+{module.topics.length - 3} temas más...</div>}
-      </div>
-    </div>
-  );
-};
-
 // --- Pages ---
 
 const Dashboard = ({ modules, events }: { modules: Module[], events: CalendarEvent[] }) => {
   const totalProgress = useMemo(() => {
-    const allSubtopics = modules.flatMap(m => m.topics.flatMap(t => t.subTopics));
-    const completed = allSubtopics.filter(s => s.isCompleted).length;
-    return allSubtopics.length > 0 ? (completed / allSubtopics.length) * 100 : 0;
+    const all = modules.flatMap(m => m.topics.flatMap(t => t.subTopics));
+    return all.length > 0 ? (all.filter(s => s.isCompleted).length / all.length) * 100 : 0;
   }, [modules]);
 
-  const upcomingExams = events.filter(e => e.type === 'exam' && !e.completed).slice(0, 2);
+  const upcomingEvents = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return events
+      .filter(e => e.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 4);
+  }, [events]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-10 animate-medical">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">Hola, Futuro Dr.</h1>
-          <p className="text-slate-500">Bienvenido al Séptimo Semestre. Estás progresando bien.</p>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter">
+            UDABOL <span className={PRIMARY_BLUE}>7mo Semestre</span>
+          </h1>
+          <p className="text-slate-500 font-medium text-lg mt-1">Bienvenido al Séptimo Semestre, Dr.</p>
         </div>
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 min-w-[240px]">
-          <div className="p-3 bg-blue-100 rounded-lg">
-            <TrendingUp className="w-6 h-6 text-blue-600" />
+        <div className="flex items-center gap-6 bg-white p-4 rounded-3xl border border-slate-200/60 shadow-sm">
+          <div className="p-3 bg-blue-50 rounded-2xl">
+            <GraduationCap className="w-6 h-6 text-blue-600" />
           </div>
-          <div className="flex-1">
-            <ProgressBar progress={totalProgress} label="Progreso Total" />
+          <div className="min-w-[160px]">
+            <ProgressBar progress={totalProgress} label="Progreso del Semestre" />
           </div>
         </div>
       </header>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {modules.map(module => (
-          <Link key={module.id} to={`/study/${module.id}`}>
-            <ModuleCard module={module} />
-          </Link>
-        ))}
-      </section>
-
-      <div className="grid grid-cols-1 gap-6">
-        <section className="bg-blue-600 rounded-xl p-6 text-white shadow-lg shadow-blue-200">
-          <div className="flex items-start justify-between mb-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Próximos Desafíos
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {upcomingExams.length > 0 ? upcomingExams.map(exam => (
-              <div key={exam.id} className="bg-white/10 p-4 rounded-lg border border-white/20">
-                <p className="font-bold text-lg">{exam.title}</p>
-                <p className="text-sm text-blue-100">{new Date(exam.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                {exam.description && <p className="text-xs text-blue-200 mt-2 opacity-80">{exam.description}</p>}
-              </div>
-            )) : (
-              <p className="text-blue-100 text-sm italic">No hay exámenes programados próximamente.</p>
-            )}
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-};
-
-const SmartPlanner = ({ onAddEvents }: { onAddEvents: (events: Omit<CalendarEvent, 'id'>[]) => void }) => {
-  const [request, setRequest] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState<Omit<CalendarEvent, 'id'>[]>([]);
-
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!request.trim()) return;
-    setLoading(true);
-    const newEvents = await generateSmartSchedule(request, startDate);
-    setPreview(newEvents);
-    setLoading(false);
-  };
-
-  const confirmPlan = () => {
-    onAddEvents(preview);
-    setPreview([]);
-    setRequest('');
-    alert("Cronograma añadido al calendario exitosamente.");
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in-95 duration-500">
-      <div className="text-center space-y-4">
-        <div className="inline-flex items-center justify-center p-3 bg-blue-100 text-blue-600 rounded-full mb-2">
-          <Sparkles className="w-8 h-8" />
-        </div>
-        <h1 className="text-3xl font-bold text-slate-900">Planificador Inteligente</h1>
-        <p className="text-slate-500">Dime qué quieres estudiar y yo organizaré tu calendario automáticamente.</p>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-6">
-        <form onSubmit={handleGenerate} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">¿Qué quieres organizar?</label>
-              <textarea
-                value={request}
-                onChange={(e) => setRequest(e.target.value)}
-                placeholder="Ej. 'Quiero estudiar todo el módulo de Cardiología en 3 semanas, dejando los fines de semana libres y poniendo un examen final el último día.'"
-                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Fecha de Inicio</label>
-              <input 
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              />
-            </div>
-            <div className="flex items-end">
-              <button 
-                type="submit"
-                disabled={loading || !request.trim()}
-                className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-              >
-                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Wand2 className="w-5 h-5" />}
-                {loading ? 'Generando...' : 'Generar Cronograma'}
-              </button>
-            </div>
-          </div>
-        </form>
-
-        {preview.length > 0 && (
-          <div className="mt-12 space-y-6 animate-in fade-in slide-in-from-top-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">Vista Previa del Plan</h2>
-              <button 
-                onClick={confirmPlan}
-                className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Confirmar y Añadir
-              </button>
-            </div>
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-              {preview.map((ev, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="flex-shrink-0 w-16 text-center">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">{new Date(ev.date).toLocaleDateString('es-ES', { month: 'short' })}</span>
-                    <span className="block text-lg font-extrabold text-slate-800">{new Date(ev.date).getDate()}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded text-white ${ev.type === 'exam' ? 'bg-red-500' : 'bg-blue-500'}`}>{ev.type}</span>
-                      <h4 className="text-sm font-bold text-slate-800">{ev.title}</h4>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-2 space-y-10">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {modules.slice(0, 4).map(mod => {
+              const subTopics = mod.topics.flatMap(t => t.subTopics);
+              const done = subTopics.filter(s => s.isCompleted).length;
+              const progress = (done / subTopics.length) * 100;
+              return (
+                <Link key={mod.id} to={`/study/${mod.id}`} className={`${GLASS_CARD} p-6 hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1 transition-all duration-300 group`}>
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{mod.name}</h3>
+                      <p className="text-xs text-slate-400 font-medium">{subTopics.length} Temas Clave</p>
                     </div>
-                    {ev.description && <p className="text-xs text-slate-500">{ev.description}</p>}
+                    <span className="text-[10px] font-black px-3 py-1 bg-slate-50 text-slate-500 rounded-full border border-slate-100">{done}/{subTopics.length}</span>
+                  </div>
+                  <ProgressBar progress={progress} color={progress > 80 ? 'bg-emerald-500' : 'bg-blue-600'} />
+                </Link>
+              );
+            })}
+          </section>
+
+          <section className={`${GLASS_CARD} p-10 bg-slate-900 text-white relative overflow-hidden group`}>
+            <div className="relative z-10">
+              <span className="inline-block px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest mb-4">Neural Engine</span>
+              <h2 className="text-3xl font-black mb-3">Planner UDABOL IA</h2>
+              <p className="text-slate-400 text-base mb-8 max-w-md leading-relaxed">Algoritmo de planificación inteligente que optimiza tus horas de estudio basándose en la carga académica actual.</p>
+              <Link to="/planner" className="inline-flex items-center gap-3 bg-white text-slate-900 px-8 py-4 rounded-2xl font-black hover:bg-blue-50 transition-all shadow-xl shadow-white/5 active:scale-95">
+                <Sparkles className="w-5 h-5 text-blue-600" /> Configurar Plan Elite
+              </Link>
+            </div>
+            <Dna className="absolute -right-12 -bottom-12 w-64 h-64 text-white/5 rotate-12 group-hover:scale-110 transition-transform duration-700" />
+          </section>
+        </div>
+
+        <div className="space-y-8">
+          <section className={`${GLASS_CARD} p-8`}>
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-3">
+                <Clock className="w-5 h-5 text-blue-600" /> Agenda Próxima
+              </h2>
+              <Link to="/calendar" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Ver Todo</Link>
+            </div>
+            <div className="space-y-5">
+              {upcomingEvents.length > 0 ? upcomingEvents.map(event => (
+                <div key={event.id} className="flex gap-4 p-4 rounded-2xl bg-slate-50/50 hover:bg-white border border-transparent hover:border-slate-100 transition-all cursor-default">
+                  <div className={`w-1.5 rounded-full ${event.type === 'exam' ? 'bg-red-500' : 'bg-blue-600'}`} />
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{new Date(event.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</p>
+                    <p className="text-sm font-bold text-slate-800 leading-snug mt-1">{event.title}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border uppercase ${event.type === 'exam' ? 'text-red-500 border-red-100' : 'text-blue-500 border-blue-100'}`}>{event.type}</span>
+                    </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-10">
+                   <ClipboardList className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                   <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Agenda despejada</p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          </section>
+
+          <section className={`${GLASS_CARD} p-6 border-l-4 border-l-amber-500 bg-amber-50/30`}>
+             <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-3">
+               <AlertCircle className="w-4 h-4 text-amber-500" /> Memo de Rotación
+             </h3>
+             <p className="text-sm text-slate-600 leading-relaxed font-medium">
+               Las bitácoras de Neumología deben ser validadas antes del próximo seminario de casos.
+             </p>
+          </section>
+        </div>
       </div>
     </div>
   );
 };
 
 const StudyPlan = ({ modules, onTopicToggle }: { modules: Module[], onTopicToggle: (modId: string, topicId: string, subId: string) => void }) => {
-  const [selectedModuleId, setSelectedModuleId] = useState(modules[0].id);
-  const selectedModule = modules.find(m => m.id === selectedModuleId)!;
+  const { moduleId } = useLocation().pathname.includes('/study/') ? { moduleId: useLocation().pathname.split('/').pop() } : { moduleId: modules[0].id };
+  const [selectedModId, setSelectedModId] = useState(moduleId || modules[0].id);
+  const currentMod = modules.find(m => m.id === selectedModId) || modules[0];
+
+  const modProgress = useMemo(() => {
+    const subs = currentMod.topics.flatMap(t => t.subTopics);
+    return (subs.filter(s => s.isCompleted).length / subs.length) * 100;
+  }, [currentMod]);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 animate-in slide-in-from-bottom duration-500">
-      <aside className="lg:w-64 flex-shrink-0">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2 sticky top-20">
-          {modules.map(m => (
-            <button
-              key={m.id}
-              onClick={() => setSelectedModuleId(m.id)}
-              className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors ${selectedModuleId === m.id ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-            >
-              {m.name}
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      <main className="flex-1 space-y-4">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">{selectedModule.name}</h2>
-        {selectedModule.topics.map(topic => (
-          <div key={topic.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-semibold text-slate-800">{topic.title}</h3>
-              <span className="text-xs bg-white px-2 py-1 rounded-md border border-slate-200 text-slate-500">
-                Índice de Maestría
-              </span>
-            </div>
-            <div className="p-4 space-y-2">
-              {topic.subTopics.map(sub => (
-                <div 
-                  key={sub.id} 
-                  onClick={() => onTopicToggle(selectedModule.id, topic.id, sub.id)}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    {sub.isCompleted ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-slate-300 group-hover:text-blue-400" />
-                    )}
-                    <span className={`text-sm ${sub.isCompleted ? 'text-slate-500 line-through' : 'text-slate-700 font-medium'}`}>
-                      {sub.title}
-                    </span>
-                  </div>
-                  <ChevronRight className={`w-4 h-4 text-slate-300 transition-transform ${sub.isCompleted ? 'rotate-0' : 'group-hover:translate-x-1'}`} />
-                </div>
-              ))}
-            </div>
+    <div className="flex flex-col lg:flex-row gap-10 animate-medical">
+      <aside className="lg:w-72 flex-shrink-0">
+        <div className="sticky top-28 space-y-3">
+          <div className="px-6 mb-6">
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Especialidades</h2>
           </div>
-        ))}
-      </main>
-    </div>
-  );
-};
-
-const MedicalUpdates = () => {
-  const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<SearchResult | null>(null);
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    setLoading(true);
-    const data = await searchMedicalUpdates(query);
-    setResult(data);
-    setLoading(false);
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in zoom-in-95 duration-500">
-      <div className="text-center space-y-4">
-        <h1 className="text-3xl font-bold text-slate-900">Actualizaciones Médicas</h1>
-        <p className="text-slate-500">Búsqueda inteligente con Google Grounding para estar siempre al día.</p>
-      </div>
-
-      <form onSubmit={handleSearch} className="relative">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ej. 'Últimas guías de manejo para falla cardiaca aguda'"
-          className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-        />
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-        <button 
-          disabled={loading}
-          className="absolute right-2 top-2 bottom-2 px-6 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:bg-slate-300"
-        >
-          {loading ? 'Buscando...' : 'Consultar'}
-        </button>
-      </form>
-
-      {loading && (
-        <div className="flex flex-col items-center justify-center p-12 space-y-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 animate-pulse">Consultando bases de datos médicas...</p>
-        </div>
-      )}
-
-      {result && !loading && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="font-bold text-slate-800">Resultados de IA</h2>
-            <div className="flex gap-2">
-              <span className="px-2 py-1 bg-green-50 text-green-700 text-[10px] font-bold uppercase rounded">Google Grounding Activo</span>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="prose prose-slate max-w-none text-slate-700 whitespace-pre-line">
-              {result.text}
-            </div>
-            
-            {result.sources.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-slate-100">
-                <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider">Fuentes y Referencias</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {result.sources.map((source, i) => (
-                    <a 
-                      key={i} 
-                      href={source.uri} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all group"
-                    >
-                      <span className="text-sm font-medium text-slate-600 truncate mr-2">{source.title}</span>
-                      <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const StudyCalendar = ({ events, onAddEvent, onDeleteEvent, onToggleEvent }: { 
-  events: CalendarEvent[], 
-  onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void,
-  onDeleteEvent: (id: string) => void,
-  onToggleEvent: (id: string) => void
-}) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: '', type: 'study' as EventType, description: '', reminder: false });
-
-  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-
-  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
-  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
-
-  const calendarDays = useMemo(() => {
-    const totalDays = daysInMonth(year, month);
-    const offset = firstDayOfMonth(year, month);
-    const days = [];
-    for (let i = 0; i < offset; i++) days.push(null);
-    for (let i = 1; i <= totalDays; i++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-      days.push({ date: i, dateStr });
-    }
-    return days;
-  }, [year, month]);
-
-  const selectedEvents = useMemo(() => {
-    return events.filter(e => e.date === selectedDate);
-  }, [events, selectedDate]);
-
-  const getEventColor = (type: EventType) => {
-    switch (type) {
-      case 'exam': return 'bg-red-500';
-      case 'task': return 'bg-orange-500';
-      case 'study': return 'bg-blue-500';
-      case 'presentation': return 'bg-purple-500';
-      default: return 'bg-slate-500';
-    }
-  };
-
-  const handleAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDate || !newEvent.title) return;
-    onAddEvent({
-      date: selectedDate,
-      title: newEvent.title,
-      type: newEvent.type,
-      description: newEvent.description,
-      reminderSet: newEvent.reminder,
-      completed: false
-    });
-    setNewEvent({ title: '', type: 'study', description: '', reminder: false });
-    setShowAddModal(false);
-  };
-
-  return (
-    <div className="space-y-6 animate-in slide-in-from-right duration-500">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{monthNames[month]} {year}</h1>
-          <p className="text-sm text-slate-500">Gestiona tus 6 meses de preparación.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link to="/planner" className="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-all">
-            <Sparkles className="w-4 h-4" />
-            Planificador Inteligente
-          </Link>
-          <div className="flex gap-2">
-            <button onClick={prevMonth} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button onClick={nextMonth} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
-            {daysOfWeek.map(d => <div key={d} className="p-3 text-center text-xs font-bold text-slate-400 uppercase">{d}</div>)}
-          </div>
-          <div className="grid grid-cols-7 border-collapse">
-            {calendarDays.map((day, i) => (
-              <div 
-                key={i} 
-                onClick={() => day && setSelectedDate(day.dateStr)}
-                className={`min-h-[100px] border-r border-b border-slate-100 p-2 flex flex-col gap-1 overflow-hidden transition-colors cursor-pointer group ${day ? 'hover:bg-blue-50/30' : 'bg-slate-50/30'} ${selectedDate === day?.dateStr ? 'bg-blue-50 border-2 border-blue-400' : ''}`}
+          <div className="space-y-2">
+            {modules.map(m => (
+              <button
+                key={m.id}
+                onClick={() => setSelectedModId(m.id)}
+                className={`w-full text-left px-6 py-4 rounded-2xl text-sm font-bold transition-all flex items-center justify-between group ${selectedModId === m.id ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
               >
-                {day && (
-                  <>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className={`text-xs font-semibold ${selectedDate === day.dateStr ? 'text-blue-600' : 'text-slate-400'}`}>{day.date}</span>
-                      {day.dateStr === new Date().toISOString().split('T')[0] && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
-                    </div>
-                    <div className="flex flex-col gap-0.5 overflow-hidden">
-                      {events.filter(e => e.date === day.dateStr).slice(0, 3).map(e => (
-                        <div key={e.id} className={`${getEventColor(e.type)} text-white text-[9px] p-1 rounded font-bold truncate ${e.completed ? 'opacity-50 line-through' : ''}`}>
-                          {e.title}
-                        </div>
-                      ))}
-                      {events.filter(e => e.date === day.dateStr).length > 3 && (
-                        <div className="text-[9px] text-slate-400 text-center font-bold">+{events.filter(e => e.date === day.dateStr).length - 3} más</div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+                {m.name}
+                <ChevronRight className={`w-4 h-4 transition-transform ${selectedModId === m.id ? 'rotate-90' : 'group-hover:translate-x-1'}`} />
+              </button>
             ))}
           </div>
         </div>
+      </aside>
+
+      <div className="flex-1 space-y-8">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10">
+          <div>
+            <span className="text-blue-600 font-black text-[10px] uppercase tracking-widest mb-2 block">Módulo Especializado</span>
+            <h2 className="text-5xl font-black text-slate-900 tracking-tight">{currentMod.name}</h2>
+          </div>
+          <div className="w-full md:w-64 bg-white p-4 rounded-3xl border border-slate-200/60 shadow-sm">
+            <ProgressBar progress={modProgress} label="Objetivo del Módulo" />
+          </div>
+        </header>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-slate-800">Eventos del Día</h2>
-              <button 
-                onClick={() => selectedDate && setShowAddModal(true)}
-                disabled={!selectedDate}
-                className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-            {selectedDate ? (
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{selectedDate}</p>
-                {selectedEvents.length > 0 ? selectedEvents.map(e => (
-                  <div key={e.id} className={`p-3 rounded-xl border flex flex-col gap-2 transition-all ${e.completed ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-200 hover:shadow-md'}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => onToggleEvent(e.id)}>
-                          {e.completed ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Circle className="w-5 h-5 text-slate-300" />}
-                        </button>
-                        <div>
-                          <p className={`text-sm font-bold ${e.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{e.title}</p>
-                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${getEventColor(e.type)} text-white`}>{e.type}</span>
-                        </div>
+          {currentMod.topics.map(topic => (
+            <div key={topic.id} className={GLASS_CARD}>
+              <div className="px-8 py-5 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="font-bold text-slate-900">{topic.title}</h3>
+                <span className="text-[10px] font-black text-slate-400">{topic.subTopics.length} Subtemas</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {topic.subTopics.map(sub => (
+                  <div 
+                    key={sub.id} 
+                    onClick={() => onTopicToggle(currentMod.id, topic.id, sub.id)}
+                    className="flex items-center justify-between px-8 py-5 hover:bg-blue-50/30 cursor-pointer transition-all group"
+                  >
+                    <div className="flex items-center gap-5">
+                      <div className={`transition-all duration-300 ${sub.isCompleted ? 'scale-110' : ''}`}>
+                        {sub.isCompleted ? (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                        ) : (
+                          <Circle className="w-6 h-6 text-slate-200 group-hover:text-blue-300" />
+                        )}
                       </div>
-                      <button onClick={() => onDeleteEvent(e.id)} className="text-slate-300 hover:text-red-500">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <span className={`text-base font-semibold transition-colors ${sub.isCompleted ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{sub.title}</span>
                     </div>
-                    {e.description && <p className="text-xs text-slate-500">{e.description}</p>}
-                    {e.reminderSet && (
-                      <div className="flex items-center gap-1 text-[10px] text-orange-500 font-bold">
-                        <Bell className="w-3 h-3" /> Recordatorio activado
-                      </div>
-                    )}
+                    {sub.isCompleted && <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-wider">Completado</span>}
                   </div>
-                )) : (
-                  <div className="text-center py-8">
-                    <p className="text-slate-400 text-sm">No hay planes para este día.</p>
-                  </div>
-                )}
+                ))}
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                <AlertCircle className="w-8 h-8 mb-2 opacity-20" />
-                <p className="text-sm">Selecciona una fecha en el calendario</p>
-              </div>
-            )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StudyCalendar = ({ events, onAddEvent, onDeleteEvent }: { 
+  events: CalendarEvent[], 
+  onAddEvent: (e: Omit<CalendarEvent, 'id'>) => void,
+  onDeleteEvent: (id: string) => void
+}) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showModal, setShowModal] = useState(false);
+  const [newEvent, setNewEvent] = useState({ title: '', type: 'study' as EventType });
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    onAddEvent({ ...newEvent, date: selectedDate, completed: false, reminderSet: true });
+    setShowModal(false);
+    setNewEvent({ title: '', type: 'study' });
+  };
+
+  return (
+    <div className="space-y-10 animate-medical">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-8">
+        <div>
+          <h2 className="text-4xl font-black text-slate-900 capitalize tracking-tighter">
+            {new Date(year, month).toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+          </h2>
+          <p className="text-slate-500 font-medium">Gestión de tiempos y evaluaciones</p>
+        </div>
+        <div className="flex gap-3 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+          <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-3 hover:bg-slate-50 rounded-xl transition-colors"><ChevronLeft className="w-5 h-5" /></button>
+          <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-3 hover:bg-slate-50 rounded-xl transition-colors"><ChevronRight className="w-5 h-5" /></button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+        <div className="lg:col-span-3 bg-white rounded-[40px] border border-slate-200 overflow-hidden shadow-xl shadow-slate-900/5">
+          <div className="grid grid-cols-7 bg-slate-900 border-b border-white/5">
+            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
+              <div key={d} className="p-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{d}</div>
+            ))}
           </div>
-          
-          <div className="bg-slate-900 rounded-2xl p-6 text-white">
-            <h3 className="font-bold mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-400" />
-              Sincronización Android
-            </h3>
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Las alarmas y recordatorios se sincronizarán con tu dispositivo si permites las notificaciones en el navegador.
-            </p>
-            <button 
-              onClick={() => Notification.requestPermission()}
-              className="w-full py-3 bg-blue-600 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors"
-            >
-              Habilitar Notificaciones
-            </button>
+          <div className="grid grid-cols-7">
+            {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} className="h-40 border-r border-b border-slate-50 bg-slate-50/20" />)}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const d = i + 1;
+              const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+              const isSelected = selectedDate === dateStr;
+              const isToday = dateStr === new Date().toISOString().split('T')[0];
+              const dayEvents = events.filter(e => e.date === dateStr);
+              
+              return (
+                <div 
+                  key={d} 
+                  onClick={() => setSelectedDate(dateStr)}
+                  className={`h-40 border-r border-b border-slate-50 p-4 cursor-pointer transition-all hover:bg-blue-50/20 ${isSelected ? 'bg-blue-50/40' : ''}`}
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <span className={`text-sm font-black rounded-lg w-8 h-8 flex items-center justify-center transition-all ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : isToday ? 'text-blue-600 bg-blue-50 border border-blue-100' : 'text-slate-400'}`}>{d}</span>
+                    {dayEvents.length > 0 && <div className="w-1.5 h-1.5 bg-blue-600 rounded-full" />}
+                  </div>
+                  <div className="space-y-1.5">
+                    {dayEvents.slice(0, 3).map(e => (
+                      <div key={e.id} className={`text-[8px] p-2 rounded-lg font-black truncate text-white shadow-sm ${e.type === 'exam' ? 'bg-red-500' : e.type === 'task' ? 'bg-amber-500' : 'bg-slate-900'}`}>
+                        {e.title}
+                      </div>
+                    ))}
+                    {dayEvents.length > 3 && <div className="text-[7px] text-slate-400 font-black ml-1 uppercase tracking-widest">+{dayEvents.length - 3} Eventos</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <div className={GLASS_CARD + " p-8"}>
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest">Actividades</h3>
+              <button onClick={() => setShowModal(true)} className="p-3 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-200 active:scale-95 transition-all"><Plus className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-4">
+              {events.filter(e => e.date === selectedDate).length > 0 ? events.filter(e => e.date === selectedDate).map(e => (
+                <div key={e.id} className="p-5 bg-slate-50 rounded-[28px] border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-lg transition-all">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{e.title}</p>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 inline-block">{e.type}</span>
+                  </div>
+                  <button onClick={() => onDeleteEvent(e.id)} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              )) : (
+                <div className="text-center py-16">
+                  <ClipboardList className="w-16 h-16 text-slate-100 mx-auto mb-4" />
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Libre de Tareas</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-800">Añadir Plan para {selectedDate}</h2>
-              <button onClick={() => setShowAddModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
-            </div>
-            <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-[40px] p-10 w-full max-w-lg shadow-2xl animate-medical">
+            <h3 className="text-2xl font-black mb-8 tracking-tighter">Programar Evento</h3>
+            <form onSubmit={handleAdd} className="space-y-6">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título</label>
-                <input 
-                  autoFocus
-                  required
-                  type="text" 
-                  value={newEvent.title}
-                  onChange={e => setNewEvent({...newEvent, title: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
-                  placeholder="Ej. Examen de Cardiología"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
-                  <select 
-                    value={newEvent.type}
-                    onChange={e => setNewEvent({...newEvent, type: e.target.value as EventType})}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-                  >
-                    <option value="study">Estudio</option>
-                    <option value="exam">Examen</option>
-                    <option value="task">Tarea</option>
-                    <option value="presentation">Exposición</option>
-                    <option value="other">Otro</option>
-                  </select>
-                </div>
-                <div className="flex items-end">
-                  <label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-50 border border-slate-200 rounded-xl w-full">
-                    <input 
-                      type="checkbox" 
-                      checked={newEvent.reminder}
-                      onChange={e => setNewEvent({...newEvent, reminder: e.target.checked})}
-                      className="w-4 h-4 text-blue-600" 
-                    />
-                    <span className="text-sm font-medium text-slate-700">Alarma</span>
-                  </label>
-                </div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Descripción</label>
+                <input required autoFocus type="text" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold outline-none focus:ring-4 focus:ring-blue-100 transition-all" placeholder="Ej: Seminario de EKG" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descripción (Opcional)</label>
-                <textarea 
-                  value={newEvent.description}
-                  onChange={e => setNewEvent({...newEvent, description: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none h-24 resize-none"
-                />
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Categoría de Evento</label>
+                <select value={newEvent.type} onChange={e => setNewEvent({...newEvent, type: e.target.value as EventType})} className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold outline-none cursor-pointer">
+                  <option value="study">Sesión de Estudio</option>
+                  <option value="exam">Evaluación / Final</option>
+                  <option value="task">Tarea Académica</option>
+                  <option value="other">Hospital / Rotación</option>
+                </select>
               </div>
-              <button className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors">
-                Guardar en Cronograma
-              </button>
+              <div className="flex gap-4 pt-6">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-5 text-sm font-black text-slate-400 hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
+                <button type="submit" className="flex-1 py-5 bg-blue-600 text-white text-sm font-black rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-200 active:scale-95 transition-all">Confirmar</button>
+              </div>
             </form>
           </div>
         </div>
@@ -636,63 +377,152 @@ const StudyCalendar = ({ events, onAddEvent, onDeleteEvent, onToggleEvent }: {
   );
 };
 
+const MedicalSearch = () => {
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<SearchResult | null>(null);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setLoading(true);
+    const res = await searchMedicalUpdates(query);
+    setResult(res);
+    setLoading(false);
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-12 animate-medical">
+      <div className="text-center space-y-5">
+        <div className="inline-flex p-4 bg-blue-100 text-blue-600 rounded-[32px] mb-4 shadow-xl shadow-blue-900/5">
+          <Search className="w-8 h-8" />
+        </div>
+        <h2 className="text-5xl font-black tracking-tighter">EBM Intelligence</h2>
+        <p className="text-slate-500 text-lg max-w-xl mx-auto">Filtrado inteligente de guías clínicas y actualizaciones basadas en medicina de evidencia.</p>
+      </div>
+
+      <form onSubmit={handleSearch} className="relative group max-w-3xl mx-auto">
+        <input 
+          type="text" 
+          value={query} 
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Ej: Nuevas guías GINA 2024 para asma..." 
+          className="w-full bg-white border border-slate-200 rounded-[36px] p-8 pr-40 text-xl font-medium shadow-2xl shadow-slate-900/5 outline-none focus:ring-4 focus:ring-blue-100 transition-all placeholder:text-slate-300"
+        />
+        <button 
+          disabled={loading}
+          className="absolute right-4 top-4 bottom-4 bg-blue-600 text-white px-10 rounded-[28px] font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all disabled:opacity-50 active:scale-95 shadow-xl shadow-blue-200"
+        >
+          {loading ? 'Analizando...' : 'Consultar'}
+        </button>
+      </form>
+
+      {result && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-2 space-y-6">
+            <div className={GLASS_CARD + " p-10 leading-relaxed text-slate-800"}>
+              <div className="prose prose-slate prose-lg max-w-none whitespace-pre-line text-lg font-medium">
+                {result.text}
+              </div>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Fuentes Primarias</h4>
+            <div className="space-y-4">
+              {result.sources.map((s, i) => (
+                <a key={i} href={s.uri} target="_blank" rel="noreferrer" className={GLASS_CARD + " p-6 block hover:bg-slate-50 border-l-4 border-l-blue-600 transition-all group"}>
+                  <p className="text-sm font-bold text-slate-900 line-clamp-2 mb-3 group-hover:text-blue-600">{s.title}</p>
+                  <p className="text-[10px] text-slate-400 font-bold break-all opacity-60">{s.uri}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SmartPlannerPage = ({ onAddEvents }: { onAddEvents: (es: Omit<CalendarEvent, 'id'>[]) => void }) => {
+  const [request, setRequest] = useState('Organiza el estudio para mi examen de Cardiología que es en 2 semanas.');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    const today = new Date().toISOString().split('T')[0];
+    const events = await generateSmartSchedule(request, today);
+    if (events.length > 0) {
+      onAddEvents(events);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 5000);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-16 animate-medical text-center py-20">
+      <div className="space-y-6">
+        <div className="w-24 h-24 bg-slate-900 rounded-[40px] flex items-center justify-center text-white mx-auto shadow-2xl shadow-slate-900/20">
+          <Sparkles className="w-12 h-12" />
+        </div>
+        <h2 className="text-5xl font-black text-slate-900 tracking-tighter">Elite Medical Planner</h2>
+        <p className="text-slate-500 text-xl font-medium max-w-xl mx-auto">La IA de UDABOL diseña tu cronograma óptimo basado en la curva de olvido y prioridad clínica.</p>
+      </div>
+
+      <div className={GLASS_CARD + " p-12 bg-white/50"}>
+        <div className="mb-8">
+           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-left mb-4 ml-2">Contexto Académico</label>
+           <textarea 
+            value={request}
+            onChange={e => setRequest(e.target.value)}
+            className="w-full bg-slate-50 border-2 border-slate-100 rounded-[32px] p-8 text-slate-700 font-bold text-lg h-40 outline-none focus:ring-4 focus:ring-blue-100 transition-all mb-4 resize-none"
+          />
+        </div>
+        <button 
+          onClick={handleGenerate}
+          disabled={loading}
+          className="w-full py-6 bg-slate-900 text-white rounded-[28px] font-black text-xl hover:bg-slate-800 shadow-2xl shadow-slate-900/10 transition-all disabled:opacity-50 active:scale-[0.98]"
+        >
+          {loading ? 'Generando Algoritmo de Estudio...' : 'Generar Cronograma'}
+        </button>
+        {success && <p className="mt-8 text-emerald-600 font-black flex items-center justify-center gap-3 animate-bounce"><ShieldCheck className="w-6 h-6" /> ¡Sincronización Exitosa!</p>}
+      </div>
+    </div>
+  );
+};
+
 // --- App Layout ---
 
-const Navbar = ({ totalProgress }: { totalProgress: number }) => {
-  const location = useLocation();
-
-  const navItems = [
-    { label: 'Dashboard', icon: <Home className="w-5 h-5" />, path: '/' },
-    { label: 'Temas', icon: <BookOpen className="w-5 h-5" />, path: '/study' },
-    { label: 'Calendario', icon: <CalendarIcon className="w-5 h-5" />, path: '/calendar' },
-    { label: 'Planner IA', icon: <Sparkles className="w-5 h-5" />, path: '/planner' },
-    { label: 'Buscador', icon: <Search className="w-5 h-5" />, path: '/search' },
+const Navbar = () => {
+  const loc = useLocation();
+  const items = [
+    { to: '/', icon: <LayoutDashboard className="w-5 h-5" />, label: 'Inicio' },
+    { to: '/study', icon: <BookOpen className="w-5 h-5" />, label: 'Temario' },
+    { to: '/calendar', icon: <CalendarIcon className="w-5 h-5" />, label: 'Agenda' },
   ];
 
   return (
-    <nav className="fixed bottom-0 md:top-0 md:bottom-auto w-full z-50 bg-white/80 backdrop-blur-md border-t md:border-t-0 md:border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="hidden md:flex items-center gap-2 text-blue-600 font-extrabold text-lg uppercase tracking-tight">
-          <Stethoscope className="w-6 h-6" />
-          CRONOGRAMA <span className="text-slate-900">7mo semestre</span>
+    <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-fit">
+      <div className="bg-slate-900/95 backdrop-blur-xl px-4 py-3 rounded-[40px] border border-white/10 shadow-2xl flex items-center gap-2">
+        {items.map(item => (
+          <Link 
+            key={item.to} 
+            to={item.to} 
+            className={`flex items-center gap-3 px-6 py-3 rounded-[32px] transition-all duration-300 ${loc.pathname === item.to ? 'bg-white text-slate-900 font-black shadow-lg shadow-white/5' : 'text-slate-400 hover:text-white'}`}
+          >
+            {item.icon}
+            <span className="hidden md:block text-[11px] font-black uppercase tracking-widest">{item.label}</span>
+          </Link>
+        ))}
+        <div className="w-[1px] h-8 bg-white/10 mx-2 hidden md:block"></div>
+        <Link 
+          to="/search" 
+          className={`flex items-center gap-3 px-8 py-3 rounded-[32px] transition-all duration-500 ${loc.pathname === '/search' ? 'bg-white text-slate-900 font-black' : 'bg-blue-600 text-white hover:bg-blue-500 font-black shadow-lg shadow-blue-600/20'}`}
+        >
+          <Search className="w-5 h-5" />
+          <span className="text-[11px] uppercase tracking-widest">EBM</span>
         </Link>
-
-        {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-6">
-          {navItems.map(item => (
-            <Link 
-              key={item.path} 
-              to={item.path} 
-              className={`flex items-center gap-2 text-xs font-bold transition-colors uppercase ${location.pathname === item.path || (location.pathname.startsWith('/study/') && item.path === '/study') ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
-        </div>
-
-        {/* Mobile Nav */}
-        <div className="flex md:hidden w-full justify-around items-center h-full">
-          {navItems.map(item => (
-            <Link 
-              key={item.path} 
-              to={item.path} 
-              className={`flex flex-col items-center gap-1 transition-colors ${location.pathname === item.path || (location.pathname.startsWith('/study/') && item.path === '/study') ? 'text-blue-600' : 'text-slate-400'}`}
-            >
-              {item.icon}
-              <span className="text-[10px] font-bold">{item.label}</span>
-            </Link>
-          ))}
-        </div>
-
-        <div className="hidden md:flex items-center gap-4">
-          <div className="w-32">
-             <ProgressBar progress={totalProgress} />
-          </div>
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs border border-blue-200">
-            DR
-          </div>
-        </div>
       </div>
     </nav>
   );
@@ -700,43 +530,18 @@ const Navbar = ({ totalProgress }: { totalProgress: number }) => {
 
 export default function App() {
   const [modules, setModules] = useState<Module[]>(() => {
-    const saved = localStorage.getItem('medstudy_modules');
+    const saved = localStorage.getItem('axioma_modules_v1');
     return saved ? JSON.parse(saved) : SEMESTER_DATA;
   });
 
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
-    const saved = localStorage.getItem('medstudy_events');
+    const saved = localStorage.getItem('axioma_events_v1');
     return saved ? JSON.parse(saved) : [];
   });
 
-  useEffect(() => {
-    localStorage.setItem('medstudy_modules', JSON.stringify(modules));
-  }, [modules]);
-
-  useEffect(() => {
-    localStorage.setItem('medstudy_events', JSON.stringify(events));
-  }, [events]);
-
-  // Basic reminder system using Browser Notification API
-  useEffect(() => {
-    const checkReminders = () => {
-      const today = new Date().toISOString().split('T')[0];
-      const reminders = events.filter(e => e.date === today && e.reminderSet && !e.completed);
-      
-      if (reminders.length > 0 && Notification.permission === 'granted') {
-        reminders.forEach(e => {
-          new Notification(`MedStudy Pro: Tienes un plan hoy`, {
-            body: `${e.title}: ${e.description || '¡Es hora de avanzar en tu cronograma!'}`,
-            icon: 'https://cdn-icons-png.flaticon.com/512/822/822143.png'
-          });
-        });
-      }
-    };
-
-    const interval = setInterval(checkReminders, 1000 * 60 * 60); // Check every hour
-    checkReminders(); // Initial check
-    return () => clearInterval(interval);
-  }, [events]);
+  // Persistencia automática
+  useEffect(() => localStorage.setItem('axioma_modules_v1', JSON.stringify(modules)), [modules]);
+  useEffect(() => localStorage.setItem('axioma_events_v1', JSON.stringify(events)), [events]);
 
   const handleTopicToggle = (modId: string, topicId: string, subId: string) => {
     setModules(prev => prev.map(m => {
@@ -747,52 +552,29 @@ export default function App() {
           if (t.id !== topicId) return t;
           return {
             ...t,
-            subTopics: t.subTopics.map(s => {
-              if (s.id !== subId) return s;
-              return { ...s, isCompleted: !s.isCompleted };
-            })
+            subTopics: t.subTopics.map(s => s.id === subId ? { ...s, isCompleted: !s.isCompleted } : s)
           };
         })
       };
     }));
   };
 
-  const handleAddEvent = (event: Omit<CalendarEvent, 'id'>) => {
-    setEvents(prev => [...prev, { ...event, id: crypto.randomUUID() }]);
-  };
-
-  const handleBatchAddEvents = (newEvents: Omit<CalendarEvent, 'id'>[]) => {
-    const withIds = newEvents.map(ev => ({ ...ev, id: crypto.randomUUID() }));
-    setEvents(prev => [...prev, ...withIds]);
-  };
-
-  const handleDeleteEvent = (id: string) => {
-    setEvents(prev => prev.filter(e => e.id !== id));
-  };
-
-  const handleToggleEvent = (id: string) => {
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, completed: !e.completed } : e));
-  };
-
-  const totalProgress = useMemo(() => {
-    const all = modules.flatMap(m => m.topics.flatMap(t => t.subTopics));
-    const done = all.filter(s => s.isCompleted).length;
-    return all.length > 0 ? (done / all.length) * 100 : 0;
-  }, [modules]);
+  const handleAddEvent = (e: Omit<CalendarEvent, 'id'>) => setEvents(prev => [...prev, { ...e, id: crypto.randomUUID() }]);
+  const handleAddEvents = (es: Omit<CalendarEvent, 'id'>[]) => setEvents(prev => [...prev, ...es.map(e => ({ ...e, id: crypto.randomUUID() }))]);
+  const handleDeleteEvent = (id: string) => setEvents(prev => prev.filter(e => e.id !== id));
 
   return (
     <HashRouter>
-      <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Navbar totalProgress={totalProgress} />
-        
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8 md:pt-24 pb-24 md:pb-8">
+      <div className="min-h-screen bg-slate-50 pb-32 md:pt-10">
+        <Navbar />
+        <main className="max-w-[1440px] mx-auto px-8 py-10">
           <Routes>
             <Route path="/" element={<Dashboard modules={modules} events={events} />} />
             <Route path="/study" element={<StudyPlan modules={modules} onTopicToggle={handleTopicToggle} />} />
             <Route path="/study/:moduleId" element={<StudyPlan modules={modules} onTopicToggle={handleTopicToggle} />} />
-            <Route path="/calendar" element={<StudyCalendar events={events} onAddEvent={handleAddEvent} onDeleteEvent={handleDeleteEvent} onToggleEvent={handleToggleEvent} />} />
-            <Route path="/planner" element={<SmartPlanner onAddEvents={handleBatchAddEvents} />} />
-            <Route path="/search" element={<MedicalUpdates />} />
+            <Route path="/calendar" element={<StudyCalendar events={events} onAddEvent={handleAddEvent} onDeleteEvent={handleDeleteEvent} />} />
+            <Route path="/search" element={<MedicalSearch />} />
+            <Route path="/planner" element={<SmartPlannerPage onAddEvents={handleAddEvents} />} />
           </Routes>
         </main>
       </div>
